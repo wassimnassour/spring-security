@@ -14,13 +14,18 @@ public class PrincipalUser implements UserDetails {
 
     Users user;
 
-    public  PrincipalUser (Users _user){
+    List<GrantedAuthority> authorities;
+
+    public  PrincipalUser (Users _user ,List<GrantedAuthority>  _authorities  ){
       user = _user;
+        authorities = _authorities;
+
+
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
+        return authorities;
     }
 
     @Override

@@ -18,6 +18,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
+
 import java.io.IOException;
 
 import static io.micrometer.common.util.StringUtils.isEmpty;
@@ -36,44 +37,44 @@ public class JwtService extends OncePerRequestFilter {
 
 
     AntPathMatcher antPathMatcher = new AntPathMatcher();
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-       return antPathMatcher.match("/login" , request.getRequestURI());
+        return antPathMatcher.match("/login", request.getRequestURI());
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-try {
+        try {
 
-    final String authorizationToken  =request.getHeader(HttpHeaders.AUTHORIZATION);
-    String token;
-    String username = "";
+            final String authorizationToken = request.getHeader(HttpHeaders.AUTHORIZATION);
+            String token;
+            String username = "";
 
-    if(authorizationToken.startsWith("Bearer")){
-        token =authorizationToken.replace("Bearer ", "").trim();
-        username=  jwtUtils.extractUsername(token);
-    }
+            if (authorizationToken.startsWith("Bearer")) {
+                token = authorizationToken.replace("Bearer ", "").trim();
+                username = jwtUtils.extractUsername(token);
+            }
 
 
+            Users user = userRepo.findByUsername(username);
 
-    Users user = userRepo.findByUsername(username);
+            if (user == null) {
+                throw new RuntimeException("Cannot find user");
+            }
 
-    if (user == null) {
-        throw  new RuntimeException("Cannot find user");
-    }
+            if (!isEmpty(authorizationToken) && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userPrinciple = userDetailsService.loadUserByUsername(username);
+                if (jwtUtils.isTokenValid(authorizationToken.replace("Bearer ", "").trim(), userPrinciple)) {
+                    System.out.print(userPrinciple.getAuthorities());
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userPrinciple, null, userPrinciple.getAuthorities());
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+            }
 
-    if(!isEmpty(authorizationToken) && SecurityContextHolder.getContext().getAuthentication() == null) {
-        UserDetails userPrinciple  = userDetailsService.loadUserByUsername(username);
-        if(jwtUtils.isTokenValid(authorizationToken.replace("Bearer ", "").trim() , userPrinciple)) {
-            UsernamePasswordAuthenticationToken  authToken = new UsernamePasswordAuthenticationToken(userPrinciple , null , userPrinciple.getAuthorities());
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authToken);
-        }
-    }
-
-    filterChain.doFilter(request, response);
-}
-         catch (JwtAuthenticationException e) {
+            filterChain.doFilter(request, response);
+        } catch (JwtAuthenticationException e) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
         } catch (Exception e) {
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");

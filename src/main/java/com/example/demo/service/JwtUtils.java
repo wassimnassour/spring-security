@@ -2,9 +2,8 @@ package com.example.demo.service;
 
 import com.example.demo.exaptions.JwtAuthenticationException;
 import io.jsonwebtoken.*;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -25,9 +24,10 @@ public class JwtUtils {
     }
 
 
-    public String generateToken(String username ) {
+    public String generateToken(Authentication user ) {
         Map<String, Object> claims = new HashMap<>();
-        return Jwts.builder().signWith(getKey()).addClaims(claims).setSubject(username).setIssuedAt(new Date())
+        claims.put("roles",user.getAuthorities());
+        return Jwts.builder().signWith(getKey()).addClaims(claims).setSubject(user.getName()).setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60)) // 1 hour expiration
                 .compact();
     }
